@@ -5,10 +5,6 @@ import pandas_datareader as web
 
 import plotille
 
-
-expire_after = datetime.timedelta(days=39)
-#session = requests_cache.CachedSession(cache_name='cache', backend='sqlite', expire_after=expire_after)
-
 # select start date for correlation window as well as list of tickers
 start = datetime.datetime(2020, 1, 1)
 end = datetime.datetime(2020, 3, 4)
