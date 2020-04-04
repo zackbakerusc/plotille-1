@@ -27,6 +27,7 @@ from os import linesep
 
 import six
 
+from ._colors import color as colorlib
 from ._dots import Dots
 from ._util import roundeven
 
@@ -46,7 +47,8 @@ class Canvas(object):
     only accept coordinates in the reference system. If the coordinates are outside
     the reference system, they are not plotted.
     """
-    def __init__(self, width, height, xmin=0, ymin=0, xmax=1, ymax=1, background=None, color_mode='names'):
+    def __init__(self, width, height, xmin=0, ymin=0, xmax=1, ymax=1,
+                 background=None, color_mode='names', width_bonus=0):
         """Initiate a Canvas object
 
         Parameters:
@@ -88,7 +90,15 @@ class Canvas(object):
         self._x_delta_pt = self._x_delta / 2
         self._y_delta_pt = self._y_delta / 4
         # the canvas to print in
-        self._canvas = [[Dots(bg=background, color_mode=color_mode) for j_ in range(width)] for i_ in range(height)]
+        self.width_bonus = width_bonus
+
+        # _canvas holds Dot objects
+        self._canvas = [[Dots(bg=background, color_mode=color_mode)
+                         for j_ in range(width+self.width_bonus)] for i_ in range(height)]
+
+        # _canvas_overlay holds text objects and non-Dot markers
+        self._canvas_overlay = [[None for j_ in range(width+self.width_bonus)]
+                                for i_ in range(height)]
 
     def __str__(self):
         return 'Canvas(width={}, height={}, xmin={}, ymin={}, xmax={}, ymax={})'.format(
@@ -134,7 +144,7 @@ class Canvas(object):
     def _transform_y(self, y):
         return int(roundeven((y - self.ymin) / self._y_delta_pt))
 
-    def _set(self, x_idx, y_idx, set_=True, color=None):
+    def _set(self, x_idx, y_idx, set_=True, color=None,  overlay=False, marker='o', text=None):
         """Put a dot into the canvas at (x_idx, y_idx) [canvas coordinate system]
 
         Parameters:
@@ -147,9 +157,18 @@ class Canvas(object):
         y_c, y_p = y_idx // 4, y_idx % 4
 
         if 0 <= x_c < self.width and 0 <= y_c < self.height:
-            self._canvas[y_c][x_c].update(x_p, y_p, set_)
-            if color:
-                self._canvas[y_c][x_c].fg = color
+            if not overlay:
+                self._canvas[y_c][x_c].update(x_p, y_p, set_)
+                if color:
+                    self._canvas[y_c][x_c].fg = color
+            else:
+                self._canvas_overlay[y_c][x_c] = colorlib(marker, color)
+
+            if text:
+                for ii in range(len(text)):
+                    x_text = x_c+2+ii
+                    if x_text < self.width+self.width_bonus:
+                        self._canvas_overlay[y_c][x_text] = colorlib(text[ii], color)
 
     def dots_between(self, x0, y0, x1, y1):
         """Number of dots between (x0, y0) and (x1, y1).
@@ -168,7 +187,7 @@ class Canvas(object):
 
         return x1_idx - x0_idx, y1_idx - y0_idx
 
-    def point(self, x, y, set_=True, color=None):
+    def point(self, x, y, set_=True, color=None, overlay=False, marker='o', text=None):
         """Put a point into the canvas at (x, y) [reference coordinate system]
 
         Parameters:
@@ -179,7 +198,8 @@ class Canvas(object):
         """
         x_idx = self._transform_x(x)
         y_idx = self._transform_y(y)
-        self._set(x_idx, y_idx, set_, color)
+
+        self._set(x_idx, y_idx, set_, color, overlay, marker, text)
 
     def fill_char(self, x, y, set_=True):
         """Fill the complete character at the point (x, y) [reference coordinate system]
@@ -248,8 +268,16 @@ class Canvas(object):
             linesep: str  The requested line seperator. default: os.linesep
 
         Returns:
-            unicode: The canvas as a string.
+            unicode: The canvas as a string, overlaid with textual elements
         """
 
-        return linesep.join(''.join(map(six.text_type, row))
-                            for row in reversed(self._canvas))
+        # combine _canvas (Dots) and overlay (text) so that overlay is on top of dots
+        ret_combined = ''
+        for row_index in range(len(self._canvas))[::-1]:
+            for ii in range(len(self._canvas[row_index])):
+                if self._canvas_overlay[row_index][ii] is None:
+                    ret_combined += six.text_type(self._canvas[row_index][ii])
+                else:
+                    ret_combined += six.text_type(self._canvas_overlay[row_index][ii])
+            ret_combined += linesep
+        return ret_combined[:-1]

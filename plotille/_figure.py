@@ -26,6 +26,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from collections import namedtuple
 from datetime import timedelta
 from itertools import cycle
+import math
 import os
 
 from six.moves import zip
@@ -238,17 +239,60 @@ class Figure(object):
     def clear(self):
         self._plots = []
 
+    def circle(self, xcenter=2.5, ycenter=5,  radius=10, label=None, interp='linear', lc=None):
+        # circle is just a special case of ellipse
+        self.ellipse(xcenter=xcenter, ycenter=ycenter, angle=0,
+                     xamplitude=radius, yamplitude=radius,
+                     label=label, interp=interp, lc=lc)
+
+    def ellipse(self, xcenter=2.5, ycenter=5, angle=30,
+                xamplitude=1,  yamplitude=2.5,
+                label=None, interp='linear', lc=None):
+
+        # x-position of the center
+        u = xcenter
+        # y-position of the center
+        v = ycenter
+        # radius on the x-axis
+        a = xamplitude
+        # radius on the y-axis
+        b = yamplitude
+        # rotation angle
+        t_rot = angle
+
+        t_list = [ii*2*math.pi/100 for ii in range(100)]
+        ell_list = [[a*math.cos(t), b*math.sin(t)] for t in t_list]
+
+        r_rot = [[math.cos(t_rot), -math.sin(t_rot)], [math.sin(t_rot), math.cos(t_rot)]]
+
+        def dot(r_rot, ell):
+            return [r_rot[0][0] * ell[0] + r_rot[0][1] * ell[1],  r_rot[1][0] * ell[0] + r_rot[1][1] * ell[1]]
+
+        ell_rot_list = [dot(r_rot, ell) for ell in ell_list]
+
+        X = [u+ell_rot[0] for ell_rot in ell_rot_list]
+        Y = [v+ell_rot[1] for ell_rot in ell_rot_list]
+
+        self.plot(X, Y, lc=lc, label=label, interp='linear')  # noqa: N803
+
     def plot(self, X, Y, lc=None, interp='linear', label=None):  # noqa: N803
         if len(X) > 0:
             if lc is None:
                 lc = next(self._color_seq)[self.color_mode]
-            self._plots += [Plot.create(X, Y, lc, interp, label)]
+            overlay = False
+            self._plots += [Plot.create(X, Y, lc, interp, label, overlay)]
 
-    def scatter(self, X, Y, lc=None, label=None):  # noqa: N803
+    def scatter(self, X, Y, lc=None, label=None, marker=None, text=None):  # noqa: N803
         if len(X) > 0:
             if lc is None:
                 lc = next(self._color_seq)[self.color_mode]
-            self._plots += [Plot.create(X, Y, lc, None, label)]
+
+            if marker is not None:
+                overlay = True
+            else:
+                overlay = False
+
+            self._plots += [Plot.create(X, Y, lc, None, label, overlay, marker, text)]
 
     def histogram(self, X, bins=160, lc=None):  # noqa: N803
         if len(X) > 0:
@@ -277,7 +321,6 @@ class Figure(object):
             # print X / Y origin axis
             canvas.line(self._in_fmt.convert(xmin), 0, self._in_fmt.convert(xmax), 0)
             canvas.line(0, self._in_fmt.convert(ymin), 0, self._in_fmt.convert(ymax))
-
         res = canvas.plot(linesep=self.linesep)
 
         # add y axis
@@ -306,16 +349,16 @@ class Figure(object):
         return res
 
 
-class Plot(namedtuple('Plot', ['X', 'Y', 'lc', 'interp', 'label'])):
+class Plot(namedtuple('Plot', ['X', 'Y', 'lc', 'interp', 'label', 'overlay', 'marker', 'text'])):
 
     @classmethod
-    def create(cls, X, Y, lc, interp, label):  # noqa: N803
+    def create(cls, X, Y, lc, interp, label, overlay=False, marker=None, text=None):  # noqa: N803
         if len(X) != len(Y):
             raise ValueError('X and Y dim have to be the same.')
         if interp not in ('linear', None):
             raise ValueError('Only "linear" and None are allowed values for `interp`.')
 
-        return cls(X, Y, lc, interp, label)
+        return cls(X, Y, lc, interp, label, overlay, marker, text)
 
     def width_vals(self):
         return self.X
@@ -324,6 +367,25 @@ class Plot(namedtuple('Plot', ['X', 'Y', 'lc', 'interp', 'label'])):
         return self.Y
 
     def write(self, canvas, with_colors, in_fmt):
+
+        # plot all points with optional text first, then lines
+        # separating out points from lines allows single-point scatters to successfuly plot
+
+        color = self.lc if with_colors else None
+
+        # make point iterators
+        points = zip(map(in_fmt.convert, self.X), map(in_fmt.convert, self.Y))
+
+        for index, (x, y) in enumerate(points):
+            if(isinstance(self.text, list) and index <= len(self.text)):
+                # if self.text is a list, each point has a different label
+                text_for_point = self.text[index]
+            else:
+                # if self.text is not a list, each point has the same label
+                text_for_point = self.text
+
+            canvas.point(x, y, color=color, overlay=self.overlay, marker=self.marker, text=text_for_point)
+
         # make point iterators
         from_points = zip(map(in_fmt.convert, self.X), map(in_fmt.convert, self.Y))
         to_points = zip(map(in_fmt.convert, self.X), map(in_fmt.convert, self.Y))
@@ -331,17 +393,14 @@ class Plot(namedtuple('Plot', ['X', 'Y', 'lc', 'interp', 'label'])):
         # remove first point of to_points
         next(to_points)
 
-        color = self.lc if with_colors else None
-        # plot points
+        # plot lines
         for (x0, y0), (x, y) in zip(from_points, to_points):
-            canvas.point(x0, y0, color=color)
-
-            canvas.point(x, y, color=color)
             if self.interp == 'linear':
                 canvas.line(x0, y0, x, y, color=color)
 
 
 class Histogram(namedtuple('Histogram', ['X', 'bins', 'frequencies', 'buckets', 'lc'])):
+
     @classmethod
     def create(cls, X, bins, lc):  # noqa: N803
         frequencies, buckets = hist(X, bins)
