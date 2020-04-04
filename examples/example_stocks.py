@@ -1,14 +1,13 @@
+import datetime
+
 import pandas as pd
 import pandas_datareader as web
-import requests_cache
-
-import datetime
 
 import plotille
 
 
 expire_after = datetime.timedelta(days=39)
-session = requests_cache.CachedSession(cache_name='cache', backend='sqlite', expire_after=expire_after)
+#session = requests_cache.CachedSession(cache_name='cache', backend='sqlite', expire_after=expire_after)
 
 # select start date for correlation window as well as list of tickers
 start = datetime.datetime(2020, 1, 1)
@@ -21,7 +20,7 @@ symbols = []
 
 # pull price using iex for each symbol in list defined above
 for ticker in symbols_list:
-    r = web.DataReader(ticker, 'yahoo', start, end, session=session)
+    r = web.DataReader(ticker, 'yahoo', start, end)
     # add a symbol column
     r['Symbol'] = ticker
     symbols.append(r)
