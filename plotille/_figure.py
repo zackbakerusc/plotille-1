@@ -270,12 +270,12 @@ class Figure(object):
 
         ell_rot_list = [dot(r_rot, ell) for ell in ell_list]
 
-        X = [u+ell_rot[0] for ell_rot in ell_rot_list]
-        Y = [v+ell_rot[1] for ell_rot in ell_rot_list]
+        X = [u+ell_rot[0] for ell_rot in ell_rot_list]  # noqa: N806
+        Y = [v+ell_rot[1] for ell_rot in ell_rot_list]  # noqa: N806
 
-        self.plot(X, Y, lc=lc, label=label, interp='linear')  # noqa: N803
+        self.plot(X, Y, lc=lc, label=label, interp='linear')  # noqa: N803 N806
 
-    def plot(self, X, Y, lc=None, interp='linear', label=None):  # noqa: N803
+    def plot(self, X, Y, lc=None, interp='linear', label=None):  # noqa: N803 N806
         if len(X) > 0:
             if lc is None:
                 lc = next(self._color_seq)[self.color_mode]

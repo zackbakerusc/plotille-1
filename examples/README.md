@@ -38,7 +38,7 @@ Most examples just require plotille, but the more elaborate examples require num
   ```
   
   
-* Draw a single point scatter plot
+* Draw a sin wave with scatter plot
   ```
    python example_single_scatter.py
   ```
