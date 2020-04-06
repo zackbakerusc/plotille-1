@@ -13,7 +13,7 @@ commands:
             source $BASH_ENV
 
       - restore_cache:
-          key: v1-plotille-{{ .Environment.CIRCLE_STAGE }}-{{ checksum "pyproject.toml" }}-{{ checksum "setup.cfg" }}
+          key: v1a-plotille-{{ .Environment.CIRCLE_STAGE }}-{{ checksum "pyproject.toml" }}-{{ checksum "setup.cfg" }}
 
       - run:
           name: Pre-install
