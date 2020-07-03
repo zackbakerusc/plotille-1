@@ -37,7 +37,7 @@ six = "^1.12"
 
 
 [tool.poetry.dev-dependencies]
-
+setuptools = "^35"
 coveralls = "^1.5.1"
 flake8 = "^3.5.0"
 flake8-bugbear = { version = "^18.8.0", python = "^3.5" }
