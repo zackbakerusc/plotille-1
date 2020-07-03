@@ -34,6 +34,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "~2.7 || ^3.5"
 six = "^1.12"
+setuptools = "^35"
 
 
 [tool.poetry.dev-dependencies]
